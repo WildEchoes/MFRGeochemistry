@@ -210,11 +210,11 @@ class MFRGeoChemistry(nn.Module):
 
         self.rs_feature = common_parm(in_chans=in_c1, embed_dim=embed_dim1)
         self.ndvi_feature = common_parm(in_chans=in_c2, embed_dim=embed_dim2)
-        self.magnetic_feature = common_parm(in_chans=in_c2, embed_dim=embed_dim2)
+        # self.magnetic_feature = common_parm(in_chans=in_c2, embed_dim=embed_dim2)
         self.dem_feature = common_parm(in_chans=in_c2, embed_dim=embed_dim2)
 
-        self.fusion = MHCA(n_feats=in_c1 + in_c2 * 3, ratio=0.5)
-        self.regression = MultiModalRegression(in_c=in_c1 + in_c2 * 3 + 64)
+        self.fusion = MHCA(n_feats=in_c1 + in_c2 * 2, ratio=0.5)
+        self.regression = MultiModalRegression(in_c=in_c1 + in_c2 * 2 + 64)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x1 = self.spectrum_head(x[:, 0:9, :, :])
@@ -225,16 +225,16 @@ class MFRGeoChemistry(nn.Module):
         x3 = self.reshape_out_feature(
             self.ndvi_feature(x[:, 9:10, :, :]), in_chan=self.in_c2
         )
-        x4 = self.reshape_out_feature(
-            self.magnetic_feature(x[:, 10:11, :, :]), in_chan=self.in_c2
-        )
+        # x4 = self.reshape_out_feature(
+        #     self.magnetic_feature(x[:, 10:11, :, :]), in_chan=self.in_c2
+        # )
         x5 = self.reshape_out_feature(
-            self.dem_feature(x[:, 11:12, :, :]), in_chan=self.in_c2
+            self.dem_feature(x[:, 10:11, :, :]), in_chan=self.in_c2
         )
 
-        x = torch.cat([x2, x3, x4, x5], dim=1)
+        x = torch.cat([x2, x3, x5], dim=1)
         
-        del x2, x3, x4, x5
+        del x2, x3, x5
         torch.cuda.empty_cache()
         
         x = self.fusion(x)
@@ -266,7 +266,7 @@ class MFRGeoChemistry(nn.Module):
 
 if __name__ == "__main__":
     flag: list = [2]
-    x = torch.randn(320, 12, 50, 50)
+    x = torch.randn(8, 11, 50, 50)
 
     if 1 in flag:
         """Test SpectrumHead"""

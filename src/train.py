@@ -1,7 +1,6 @@
 import os
 import argparse
 from datetime import datetime
-import time
 
 import torch
 import torch.nn as nn
@@ -14,13 +13,10 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from utils import (
-    eval_metric,
-    draw_points,
-)
+from utils import eval_metric, MSELossNew
+
 from model import MFRGeoChemistry as MyModel
 from dataset import Geochem_Dataset_Train as MyDataset
-# from dataset import Geochem_Dataset_Trian_lmdb as MyDataset
 
 
 def parse_args():
@@ -140,7 +136,8 @@ def val_test(model, dataloader, opt) -> dict:
 
         output = model(data)
         # Loss
-        loss = nn.MSELoss()(output, label)
+        # loss = nn.MSELoss()(output, label)
+        loss = MSELossNew(output, label)
         # loss = nn.SmoothL1Loss(beta=opt.beta)(output, label)
         total_loss.append(loss.item())
         
@@ -248,12 +245,13 @@ def train(opt):
         scheduler = lr_scheduler.ReduceLROnPlateau(
             optimizer=optimizer,
             mode="min",
-            patience=4,
+            patience=3,
             factor=0.5,
             threshold=1e-4,
             min_lr=1e-9,
             verbose=False,
         )
+
     elif opt.scheduler == "CosineAnnealingLR":
         # T_max: 最大迭代次数，eta_min: 最小学习率, last_epoch: 最后一个epoch的index
         scheduler = lr_scheduler.CosineAnnealingLR(
@@ -297,9 +295,9 @@ def train(opt):
             label = label.cuda(opt.gpu)
 
             output = model(data)
-            # Loss
-            loss = nn.MSELoss()(output, label)
-            # loss = nn.SmoothL1Loss(beta=opt.beta)(output, label)  # SmoothL1Loss其相对于均方差(MSE)损失函数的优势在于对异常值(如过大或过小的离群点)的惩罚更小从而使模型更加健壮
+            
+            loss = MSELossNew(output, label)
+            
             loss_epoch.append(loss.item())
             
             outputs_.append(output.detach()) 
@@ -374,7 +372,7 @@ def train(opt):
 
             stopflag = 0
             print(f"----epoch {i} Model Saved! ------\n")
-            log_file.write(f"epoch {i} Model Saved! " + "\n")
+            log_file.write(f"epoch {i} Model Saved! \n")
 
             # # 绘制散点图
             # print("Draw Points...")
@@ -427,34 +425,21 @@ if __name__ == "__main__":
     timeflag_ = datetime.now().strftime("%Y%m%d-%H%M%S")
     opt_.timeflag = timeflag_
 
-    # opt_.datadir = "D:\\MyProject\\ETS_data\\trian\\imglmdb\\50"
-    # labeldir = "D:\\MyProject\\ETS_data\\trian\\geolmdb\\50"
-    
-    opt_.datadir = "D:\\MyProject\\ETS_data\\trian\\img\\50"
-    labeldir = "D:\\MyProject\\ETS_data\\trian\\geo\\50"
+    opt_.datadir = ""
+    labeldir = ""
 
-    opt_.epoch = 250
+    opt_.epoch = 150
     opt_.batch_size = 8
     opt_.lr = 0.01
-    opt_.early_stop = 10
+    opt_.early_stop = 15
     opt_.optim = "AdamW"
     opt_.val_rate = 0.3
-    opt_.warmup_epoch = 5
+    opt_.warmup_epoch = 10
 
-    labels = ["Fe2O3", "K2O", "MgO", "Na2O", "SiO2"]
-    # labels = ["Al2O3"]
+    labels = ['al2o3', 'fe2o3', 'k2o', 'mgo', 'na2o', 'sio2']
 
     for label in labels:
         opt_.label_name = label
-        if label in ["MgO", "CaO"]:
-            opt_.beta = 0.25
-        elif label in ["K2O", "Fe2O3", "Na2O"]:
-            opt_.beta = 0.5
-        elif label in ["Al2O3", "SiO2"]:
-            opt_.beta = 1
-        else:
-            raise Exception(f"No {label} label Setting!")
-
         opt_.labeldir = os.path.join(labeldir, label)
         train(opt_)
 

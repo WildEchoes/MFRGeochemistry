@@ -5,6 +5,28 @@ import torch
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+import torch.nn as nn
+
+
+def MSELossNew(output, label):
+    """
+    Calculate the mean square error loss between output and label.
+    :param output: The output data.
+    :param label: The label data.
+    :return: The mean square error loss.
+    """
+    # Ensure the input is at least 3x3 to have an inner patch
+    # Ensure the input is at least 3x3 to have an inner patch
+    assert output.shape[2] > 2 and output.shape[3] > 2, "Patch size must be larger than 2x2"
+    assert output.shape == label.shape, "Output and label must have the same shape"
+    
+    # Crop the outermost pixels
+    cropped_output = output[:, :, 1:-1, 1:-1]
+    cropped_label = label[:, :, 1:-1, 1:-1]
+    
+    # Calculate the mean square error loss
+    loss = nn.MSELoss()(cropped_output, cropped_label)
+    return loss
 
 
 def calculate_mean_std(dataloader) -> tuple:

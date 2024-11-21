@@ -1,0 +1,6 @@
+compare_method/
+
+.vscode/
+.idea/
+
+**/__pycache__/
